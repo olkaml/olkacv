@@ -42,8 +42,7 @@ body {
 }
 
 .main {
-    margin-left: 250px; /* Same as the width of the sidenav */
-    font-size: 28px; /* Increased text to enable scrolling */
+    margin-left: 32px; /* Same as the width of the sidenav */
     padding: 0px 10px;
 }
 
@@ -55,18 +54,15 @@ body {
 </head>
 <body>
 
-<div class="sidenav">
-  <a href="index.html">NFIP</a>
-  <a href="noaa.html">NOAA</a>
-</div>
-
 
 <div id="main" class="main">
-  <h2>NOAA</h2>
+  <h2>Data Visualization: Historical Flood Risk and Costs for New Jersey</h2>
+  <div>
   <p>Find the number of flooding Episdoes for each State along the years</p>
+</div>
 
-  <select id="dropdown"></select>
-  <svg width="960" height="500"></svg>
+  <span>County: <select id="county"></select></span> <span>State: <select id="dropdown"></select></span>
+  <svg id="bar_svg" width="960" height="500"></svg>
 </div>
 
  <script>    
@@ -76,7 +72,7 @@ body {
         window.onload = function()
         {
 
-              var svg = d3.select("svg"),
+              var svg = d3.select("#bar_svg"),
 margin = {
   top: 20,
   right: 20,
@@ -94,21 +90,53 @@ var x = d3.scaleBand()
 var y = d3.scaleLinear()
   .rangeRound([height, 0]);
 
+  function compare(a,b) {
+  if (a.Year < b.Year)
+    return -1;
+  if (a.Year > b.Year)
+    return 1;
+  return 0;
+}
+
 
               d3.csv("DataVizFloodsNJonly/NOAA-Table 1.csv").then(function(data) {  
 
+              	  d_New_Jersey = [];
+                  var len = data.length;
+                  for (var i = 0; i < len; i++) {
+                    if(data[i].State == "New Jersey"){
+                      d_New_Jersey.push(data[i]);
+                    }
+                  }
+
+                  data = d_New_Jersey; 	
+
+                  data.sort(compare);
+
                   dataset = data;
                   d1 = [];
+                  d_2 = [];
                   var arrayLength = dataset.length;
                   for (var i = 0; i < arrayLength; i++) {
-                    d1.push(dataset[i].State)
+                    d1.push(dataset[i].State);
+                    d_2.push(dataset[i].County);
                   }
 
                   d1 = Array.from(new Set(d1));
+                  d_2 = Array.from(new Set(d_2));
+                  console.log(d_2);
 
                   d3.select("#dropdown")
                   .selectAll("option")
                   .data(d1)
+                  .enter()
+                  .append("option")
+                  .attr("value", function(option) { return option; })
+                  .text(function(option) { return option; });
+
+                  d3.select("#county")
+                  .selectAll("option")
+                  .data(d_2)
                   .enter()
                   .append("option")
                   .attr("value", function(option) { return option; })
@@ -119,7 +147,7 @@ var y = d3.scaleLinear()
                   data = [];
                   arrayLength = d.length;
                   for (var i = 0; i < arrayLength; i++) {
-                    if(d[i].State == d1[0] && !isNaN(Number(d[i].Year))) {
+                    if(d[i].State == d1[0] && d[i].County == d_2[0] && !isNaN(Number(d[i].Year))) {
                       data.push(d[i])
                     }
                   }
@@ -163,13 +191,13 @@ var y = d3.scaleLinear()
               });
 
 
-               d3.select("#dropdown").on('change', function() {
+               d3.select("#county").on('change', function() {
               var newData = d3.select(this).property('value');
                 d1 = []
                 var arrayLength = dataset.length;
                     for (var i = 0; i < arrayLength; i++) {
 
-                      if(dataset[i].State == newData && !isNaN(Number(dataset[i].Year))){
+                      if(dataset[i].State == "New Jersey" && dataset[i].County == newData && !isNaN(Number(dataset[i].Year))){
                          d1.push(dataset[i])
                     }
                 }
