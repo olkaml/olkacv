@@ -2,10 +2,46 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<!-- <script src="https://d3js.org/d3.v4.min.js"></script> -->
+<script src="https://d3js.org/topojson.v1.min.js"></script>
 <style>
 body {
     font-family: "Lato", sans-serif;
+}
+
+.tract {
+  fill: #eee;
+}
+
+.tract:hover {
+  fill: orange;
+}
+
+#tooltip {
+  font-size: 12px;
+  position: absolute;
+  width: auto;
+  height: auto;
+  padding: 2.5px;
+  border:1px solid black;
+  background: rgb(250, 250, 250);
+  background: rgba(250, 250, 250, 0.9);
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+  pointer-events: none;
+  text-align: center;
+}
+
+#tooltip.hidden {
+  display: none;
+}
+
+.tract-border {
+  fill: none;
+  stroke: #777;
+  pointer-events: none;
 }
 
 .sidenav {
@@ -56,9 +92,13 @@ body {
 
 <div id="main" class="main">
   <h2>Data Visualization: Historical Flood Risk and Costs for New Jersey</h2>
+
   <div>
-  <p>Find the number of flooding Episdoes for each State along the years</p>
+  	<h3>Historical Flood Impact</h3>
+  <p>Interactive plot shows how floods have impacted in new jersey state according to data from NOAA's Storm Events Database.</p>
 </div>
+
+<svg id="map_svg" width="960" height="600"></svg>
 
   <span>County: <select id="county"></select></span> <span>State: <select id="dropdown"></select></span>
 
@@ -66,6 +106,112 @@ body {
   <svg id="bar_svg" width="1200" height="500"></svg>
 
  <script>    
+
+ 	var lowColor = '#6593F5'
+var highColor = '#000080'
+
+var svg1 = d3.select("#map_svg"),
+    width = +svg1.attr("width"),
+    height = +svg1.attr("height");
+
+    d3.csv("DataVizFloodsNJonly/NOAA-Table 1.csv", function(data) {
+
+    var dic = {};
+	for (var d = 0; d < data.length; d++) {
+		if(data[d].State == "New Jersey" ){
+
+			if(dic[data[d].County] != null){
+				dic[data[d].County] = Number(dic[data[d].County]) + Number(data[d].NumEpisodes);
+			}else{
+				dic[data[d].County] = Number(data[d].NumEpisodes)
+			}		
+		}
+	}
+
+	var countyData = []
+	var dataArray = [];
+
+	for (var key in dic) {
+    // check if the property/key is defined in the object itself, not in parent
+    	if (dic.hasOwnProperty(key)) {           
+			countyData.push(key);
+			dataArray.push(dic[key]);
+    	}
+	}
+
+	var minVal = d3.min(dataArray)
+	var maxVal = d3.max(dataArray)
+	var ramp = d3.scaleLinear().domain([minVal,maxVal]).range([lowColor,highColor])
+
+d3.json("NJ-34-new-jersey-counties.json", function(error, nj) {
+  if (error) throw error;
+
+  for (var i = 0; i < dataArray.length; i++) {
+
+  	// Grab State Name
+      var dataState = countyData[i];
+
+      // Grab data value 
+      var dataValue = dataArray[i];
+
+      console.log(dataState);
+
+
+      // Find the corresponding state inside the GeoJSON
+      for (var j = 0; j < nj.objects.cb_2015_new_jersey_county_20m.geometries.length; j++) {
+        var jsonState = nj.objects.cb_2015_new_jersey_county_20m.geometries[j].properties.NAME;
+
+
+        if (dataState.includes(jsonState)) {
+          // Copy the data value into the JSON
+          console.log(jsonState);
+          nj.objects.cb_2015_new_jersey_county_20m.geometries[j].properties.value = dataValue;
+          console.log(nj.objects.cb_2015_new_jersey_county_20m.geometries[j].properties.value);
+          // Stop looking through the JSON
+          break;
+        }
+      }
+  }
+
+  var land = topojson.feature(nj, {
+    type: "GeometryCollection",
+    geometries: nj.objects.cb_2015_new_jersey_county_20m.geometries.filter(function(d) {
+      return (d.id / 10000 | 0) % 100 !== 99;
+    })
+  });
+
+  // EPSG:32111
+  var path = d3.geoPath()
+      .projection(d3.geoTransverseMercator()
+          .rotate([74 + 30 / 60, -38 - 50 / 60])
+          .fitExtent([[20, 20], [940, 580]], land));
+
+  svg1.selectAll("path")
+    .data(land.features)
+    .enter()
+    .append("path")
+      //.attr("class", "tract")
+      .attr("d", path)
+      // .style("stroke", "#fff")
+      .style("stroke-width", "1")
+      .style("fill", function(d) { 
+      	console.log(d.value)
+      	return ramp(d.properties.value)
+      })
+    .append("title")
+      .text(function(d) { return "Name: " + d.properties.NAME; });
+
+  svg1.append("path")
+      .datum(topojson.mesh(nj, nj.objects.cb_2015_new_jersey_county_20m, function(a, b) { return a !== b; }))
+      .attr("class", "tract-border")
+      .attr("d", path);
+});
+});
+
+
+
+
+
 
         dataset = []         
 
@@ -99,7 +245,7 @@ var y = d3.scaleLinear()
 }
 
 
-              d3.csv("DataVizFloodsNJonly/NOAA-Table 1.csv").then(function(data) {  
+              d3.csv("DataVizFloodsNJonly/NOAA-Table 1.csv", function(err, data) {  
 
                   d_New_Jersey = [];
                   var len = data.length;
@@ -124,7 +270,7 @@ var y = d3.scaleLinear()
 
                   d1 = Array.from(new Set(d1));
                   d_2 = Array.from(new Set(d_2));
-                  console.log(d_2);
+   
 
                   d3.select("#dropdown")
                   .selectAll("option")
@@ -246,7 +392,7 @@ var y = d3.scaleLinear()
           bars.exit()
             .transition()
             .duration(500)
-            .attr("x", -xScale.bandwidth())
+            .attr("x", -x.bandwidth())
             .remove();
 
 
