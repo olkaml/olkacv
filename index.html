@@ -5,17 +5,26 @@
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <!-- <script src="https://d3js.org/d3.v4.min.js"></script> -->
 <script src="https://d3js.org/topojson.v1.min.js"></script>
+
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<!-- jQuery library -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<!-- Latest compiled JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 <style>
 body {
     font-family: "Lato", sans-serif;
 }
 
 .tract {
-  fill: #eee;
+  opacity: 1.0;
 }
 
 .tract:hover {
-  fill: orange;
+  opacity: 0.7;
 }
 
 #tooltip {
@@ -93,6 +102,18 @@ body {
 <div id="main" class="main">
   <h2>Data Visualization: Historical Flood Risk and Costs for New Jersey</h2>
 
+  <div class="container-fluid">
+  <div class="row">
+    <div class="col-sm-3"><div class="well well-lg center"><b id="num_claims"></b><div>Total number of claims settled with payout from the
+National Flood Insurance Program so far.</div></div></div>
+    <div class="col-sm-3"><div class="well well-lg"><b id="total_payout"></b><div>Total amount payout till date from the
+National Flood Insurance Program</div></div></div>
+      <div class="col-sm-3"><div class="well well-lg center"><b id="num_registration"></b><div>Total number of disaster survivor registrants awarded FEMA funds.</div></div></div>
+    <div class="col-sm-3"><div class="well well-lg"><b id="total_award"></b>
+      <div>Total amount awarded for Home repair, replacement and personal property.</div></div></div>
+  </div>
+</div>
+
   <div>
   	<h3>Historical Flood Impact</h3>
   <p>Interactive plot shows how floods have impacted in new jersey state according to data from NOAA's Storm Events Database.</p>
@@ -100,19 +121,65 @@ body {
 
 <svg id="map_svg" width="960" height="600"></svg>
 
+<div>
   <span>County: <select id="county"></select></span> <span>State: <select id="dropdown"></select></span>
+</div>
 
 </div>
   <svg id="bar_svg" width="1200" height="500"></svg>
 
  <script>    
 
- 	var lowColor = '#6593F5'
-var highColor = '#000080'
+ 	var lowColor = '#FFE5B4'
+var highColor = '#FF5800'
 
 var svg1 = d3.select("#map_svg"),
     width = +svg1.attr("width"),
     height = +svg1.attr("height");
+
+    total_claims = 0;
+    total_payment = 0;
+    d3.csv("DataVizFloodsNJonly/NFIP-Table 1.csv", function(data) {
+      console.log(data.length);
+      for(var i=0; i < data.length; i++){
+
+        if(data[i].State == "New Jersey"){
+        if(!isNaN(data[i].NumberOfClaimsClosedWithPayment)){
+          total_claims = total_claims + Number(data[i].NumberOfClaimsClosedWithPayment);
+        }
+
+        if(!isNaN(data[i].TotalPaid)){
+          total_payment = total_payment + Number(data[i].TotalPaid);
+        }
+      }
+      }
+
+      d3.select("#num_claims").html("" + total_claims);
+      d3.select("#total_payout").html("$" + total_payment);
+    });
+
+    total_registration = 0;
+    total_award = 0;
+    d3.csv("DataVizFloodsNJonly/IA-Table 1.csv", function(data) {
+      console.log(data.length);
+      for(var i=0; i < data.length; i++){
+
+        if(data[i].State == "New Jersey"){
+        if(!isNaN(data[i].TotalRegistrations)){
+          total_registration = total_registration + Number(data[i].TotalRegistrations);
+        }
+
+        if(!isNaN(data[i].TotalAwardAmount)){
+          total_award = total_award + Number(data[i].TotalAwardAmount);
+        }
+      }
+      }
+
+      d3.select("#num_registration").html("" + total_registration);
+      d3.select("#total_award").html("$" + total_award);
+    });
+
+   
 
     d3.csv("DataVizFloodsNJonly/NOAA-Table 1.csv", function(data) {
 
@@ -154,8 +221,6 @@ d3.json("NJ-34-new-jersey-counties.json", function(error, nj) {
       // Grab data value 
       var dataValue = dataArray[i];
 
-      console.log(dataState);
-
 
       // Find the corresponding state inside the GeoJSON
       for (var j = 0; j < nj.objects.cb_2015_new_jersey_county_20m.geometries.length; j++) {
@@ -164,9 +229,9 @@ d3.json("NJ-34-new-jersey-counties.json", function(error, nj) {
 
         if (dataState.includes(jsonState)) {
           // Copy the data value into the JSON
-          console.log(jsonState);
+          //console.log(jsonState);
           nj.objects.cb_2015_new_jersey_county_20m.geometries[j].properties.value = dataValue;
-          console.log(nj.objects.cb_2015_new_jersey_county_20m.geometries[j].properties.value);
+          //console.log(nj.objects.cb_2015_new_jersey_county_20m.geometries[j].properties.value);
           // Stop looking through the JSON
           break;
         }
@@ -190,16 +255,15 @@ d3.json("NJ-34-new-jersey-counties.json", function(error, nj) {
     .data(land.features)
     .enter()
     .append("path")
-      //.attr("class", "tract")
+      .attr("class", "tract")
       .attr("d", path)
-      // .style("stroke", "#fff")
+      .style("stroke", "#fff")
       .style("stroke-width", "1")
       .style("fill", function(d) { 
-      	console.log(d.value)
       	return ramp(d.properties.value)
       })
     .append("title")
-      .text(function(d) { return "Name: " + d.properties.NAME; });
+      .text(function(d) { return "Name: " + d.properties.NAME +  " ("+d.properties.value+")"; });
 
   svg1.append("path")
       .datum(topojson.mesh(nj, nj.objects.cb_2015_new_jersey_county_20m, function(a, b) { return a !== b; }))
