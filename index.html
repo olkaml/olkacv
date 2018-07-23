@@ -85,6 +85,24 @@ body {
     color: #f1f1f1;
 }
 
+/* Legend Position Style */
+.legend {
+  position:relative;
+  float: left;
+  left:20px;
+  top:30px;
+}
+
+.axis text {
+  font: 10px sans-serif;
+}
+
+.axis line, .axis path {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
 .main {
     margin-left: 32px; /* Same as the width of the sidenav */
     padding: 10px 10px 10px 10px;
@@ -119,8 +137,9 @@ National Flood Insurance Program</div></div></div>
   <p>Interactive plot shows how floods have impacted in new jersey state according to data from NOAA's Storm Events Database.</p>
 </div>
 
+<div id="map">
 <svg id="map_svg" width="960" height="600"></svg>
-
+</div>
 <div>
   <span>County: <select id="county"></select></span> <span>State: <select id="dropdown"></select></span>
 </div>
@@ -269,6 +288,53 @@ d3.json("NJ-34-new-jersey-counties.json", function(error, nj) {
       .datum(topojson.mesh(nj, nj.objects.cb_2015_new_jersey_county_20m, function(a, b) { return a !== b; }))
       .attr("class", "tract-border")
       .attr("d", path);
+
+
+   // add a legend
+    var w = 140, h = 300;
+
+    var key = d3.select("#map")
+      .append("svg")
+      .attr("width", w)
+      .attr("height", h)
+      .attr("class", "legend");
+
+    var legend = key.append("defs")
+      .append("svg:linearGradient")
+      .attr("id", "gradient")
+      .attr("x1", "100%")
+      .attr("y1", "0%")
+      .attr("x2", "100%")
+      .attr("y2", "100%")
+      .attr("spreadMethod", "pad");
+
+    legend.append("stop")
+      .attr("offset", "0%")
+      .attr("stop-color", highColor)
+      .attr("stop-opacity", 1);
+      
+    legend.append("stop")
+      .attr("offset", "100%")
+      .attr("stop-color", lowColor)
+      .attr("stop-opacity", 1);   
+
+      key.append("rect")
+      .attr("width", w - 100)
+      .attr("height", h)
+      .style("fill", "url(#gradient)")
+      .attr("transform", "translate(0,10)");
+
+      var y = d3.scaleLinear()
+      .range([h, 0])
+      .domain([minVal, maxVal]);
+
+    var yAxis = d3.axisRight(y);
+
+    key.append("g")
+      .attr("class", "y axis")
+      .attr("transform", "translate(41,10)")
+      .call(yAxis) 
+
 });
 });
 
